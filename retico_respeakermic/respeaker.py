@@ -1,10 +1,12 @@
+import base64
 import retico_core
 from retico_core.audio import AudioIU
 
 import socketio
 import signal
 import queue
-import sys 
+import sys
+
 
 class RespeakerMicrophoneModule(retico_core.AbstractProducingModule):
     """A module that produces IUs containing audio signals that are captures by
@@ -40,63 +42,81 @@ class RespeakerMicrophoneModule(retico_core.AbstractProducingModule):
         sio = socketio.Client()
         self.sio = sio
         self.audio_buffer = queue.Queue()
+        self._logged_type = False
 
         # below are the socket requirements
 
         # When the socket connects
-        @sio.event
+        @sio.event(namespace='/mic')
         def connect():
             print('Connected.')
 
         # When the socket has an error
-        @sio.event
+        @sio.event(namespace='/mic')
         def connect_error():
             print('Connection failed.')
 
         # When the socket disconnects
-        @sio.event
+        @sio.event(namespace='/mic')
         def disconnect():
             print('Disconnected.')
 
         # When the microphone sends a buffer chunk
-        @sio.on('data')
+        @sio.on('data', namespace='/mic')
         def on_data(data):
             raw_audio = data['data']
+
+            if not self._logged_type:
+                print(f"[respeaker] raw_audio arrives as: {type(raw_audio)}")
+                self._logged_type = True
+
+            if isinstance(raw_audio, (bytes, bytearray)):
+                pass  # already correct
+            elif isinstance(raw_audio, dict) and raw_audio.get('type') == 'Buffer':
+                raw_audio = bytes(raw_audio['data'])
+            elif isinstance(raw_audio, str):
+                raw_audio = base64.b64decode(raw_audio)
+            elif isinstance(raw_audio, list):
+                raw_audio = bytes(raw_audio)
+            else:
+                print(f"[respeaker] unrecognized audio chunk type {type(raw_audio)}, dropping")
+                return
+
             self.audio_buffer.put(raw_audio)
 
         # When the microphone produces an error state
-        @sio.on('error')
+        @sio.on('error', namespace='/mic')
         def on_error(error):
             print(error)
 
         # After the microphone receives silence
-        @sio.on('silence')
+        @sio.on('silence', namespace='/mic')
         def on_silence():
             print('Microphone is silent.')
 
         # After the microphone has been started
-        @sio.on('startComplete')
+        @sio.on('startComplete', namespace='/mic')
         def on_startComplete():
             print('Started recording.')
 
         # After the microphone has been stopped
-        @sio.on('stopComplete')
+        @sio.on('stopComplete', namespace='/mic')
         def on_stopComplete():
             print('Stopped recording.')
 
         # After the microphone has been puased
-        @sio.on('pauseComplete')
+        @sio.on('pauseComplete', namespace='/mic')
         def on_pauseComplete():
             print('Paused recording.')
 
         # After the microphone has been resumemd
-        @sio.on('resumeComplete')
+        @sio.on('resumeComplete', namespace='/mic')
         def on_resumeComplete():
             print('Resumed recording.')
 
         # this helps keep the mic running even if retico is killed
         def shutdown_handler(sig, frame):
-            sio.emit('pause')
+            sio.emit('pause', namespace='/mic')
             sio.disconnect()
             sys.exit(0)
 
@@ -112,12 +132,12 @@ class RespeakerMicrophoneModule(retico_core.AbstractProducingModule):
 
     def setup(self):
         """Set up the socket for recording."""
-        self.sio.connect('http://{}'.format(self._ip_port))
+        self.sio.connect('http://{}'.format(self._ip_port), namespaces=['/mic'], transports=['polling', 'websocket'])
 
     def prepare_run(self):
-        self.sio.emit('start')
+        self.sio.emit('start', namespace='/mic')
 
     def shutdown(self):
         """Close the audio stream."""
-        self.sio.emit('pause')
+        self.sio.emit('pause', namespace='/mic')
         self.audio_buffer = queue.Queue()
