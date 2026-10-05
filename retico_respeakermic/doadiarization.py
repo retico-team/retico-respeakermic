@@ -11,6 +11,7 @@ Output: the same audio, passed through, with these attributes on each IU:
     iu.speaker_changed  True on the first chunk after the speaker switches
 """
 import math
+import time
 
 import retico_core
 from retico_core.audio import AudioIU
@@ -170,3 +171,32 @@ class DOADiarizationModule(retico_core.AbstractModule):
             out.add_iu(new_iu, retico_core.UpdateType.ADD)
             produced = True
         return out if produced else None
+
+
+
+class SpeakerTracker(retico_core.AbstractConsumingModule):
+    """Keeps the most recent speaker label so the runner can read it."""
+
+    @staticmethod
+    def name():
+        return "SpeakerTracker"
+
+    @staticmethod
+    def description():
+        return "Stores the currently detected speaker."
+
+    @staticmethod
+    def input_ius():
+        return [AudioIU]
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.current_speaker = None   # None means silence
+        self.current_doa = None
+
+    def process_update(self, update_message):
+        for iu, ut in update_message:
+            if ut != retico_core.UpdateType.ADD:
+                continue
+            self.current_speaker = getattr(iu, "speaker", None)
+            self.current_doa = getattr(iu, "doa", None)
