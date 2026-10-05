@@ -7,7 +7,6 @@ import signal
 import queue
 import sys
 
-
 class RespeakerMicrophoneModule(retico_core.AbstractProducingModule):
     """A module that produces IUs containing audio signals that are captures by
     a microphone."""
@@ -42,6 +41,8 @@ class RespeakerMicrophoneModule(retico_core.AbstractProducingModule):
         sio = socketio.Client()
         self.sio = sio
         self.audio_buffer = queue.Queue()
+        self._doa = None
+        self._vad = None
         self._logged_type = False
 
         # below are the socket requirements
@@ -82,7 +83,7 @@ class RespeakerMicrophoneModule(retico_core.AbstractProducingModule):
                 print(f"[respeaker] unrecognized audio chunk type {type(raw_audio)}, dropping")
                 return
 
-            self.audio_buffer.put(raw_audio)
+            self.audio_buffer.put((raw_audio, data.get('direction'), data.get('vad')))
 
         # When the microphone produces an error state
         @sio.on('error', namespace='/mic')
@@ -114,6 +115,11 @@ class RespeakerMicrophoneModule(retico_core.AbstractProducingModule):
         def on_resumeComplete():
             print('Resumed recording.')
 
+        @sio.on('doa', namespace = '/mic')
+        def on_doa(data):
+            self._doa = data.get('dir')
+            self._doa_ts = data.get('ts')
+
         # this helps keep the mic running even if retico is killed
         def shutdown_handler(sig, frame):
             sio.emit('pause', namespace='/mic')
@@ -123,11 +129,14 @@ class RespeakerMicrophoneModule(retico_core.AbstractProducingModule):
         signal.signal(signal.SIGINT, shutdown_handler)
 
     def process_update(self, input_iu):
-        if not self.audio_buffer:
+        try:
+            sample, direction, vad = self.audio_buffer.get(timeout=0.1)
+        except queue.Empty:
             return None
-        sample = self.audio_buffer.get()
         output_iu = self.create_iu()
         output_iu.set_audio(sample, self.chunk_size, self.rate, self.sample_width)
+        output_iu.doa = direction
+        output_iu.vad = vad
         return retico_core.UpdateMessage.from_iu(output_iu, retico_core.UpdateType.ADD)
 
     def setup(self):
