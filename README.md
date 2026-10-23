@@ -177,7 +177,7 @@ def callback(update_msg):
 mic = RespeakerMicrophoneModule("192.168.0.169:8000", rate=16000, sample_width=2)
 googleasr = GoogleASRModule("en-US", rate=16000)
 debug = CallbackModule(callback=callback)
-doa = DOADiarizationModule(known_speakers={"speaker1": 240}, max_speakers=1, adapt=False)
+doa = DOADiarizationModule(known_speakers={"speaker1": 240, "speaker2": 60}, max_speakers=1, adapt=False)
 tracker = SpeakerTracker()
 splitter = SpeakerSplitterModule(hangover=5)
 
