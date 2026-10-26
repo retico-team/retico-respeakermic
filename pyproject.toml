@@ -10,7 +10,8 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "retico-core",
-    "python-socketio[client]>=5",
+    "python-socketio==4.6.1",
+    "python-engineio==3.14.2",
 ]
 keywords = ["retico", "respeaker", "microphone array", "doa", "diarization"]
 classifiers = [
