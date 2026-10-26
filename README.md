@@ -2,7 +2,11 @@
 A ReTiCo module that allows the use of a Seeed ReSpeaker as a microphone
 # Installation and Requirements
 Clone retico-core: https://github.com/retico-team/retico-core
+
+
 Clone retico-googleasr: https://github.com/retico-team/retico-googleasr
+
+
 Read through the instructions of googleasr to get it running
 ``` pip install . ```
 # How to Run:
