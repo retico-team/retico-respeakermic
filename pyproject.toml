@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "retico-respeakermic"
+version = "0.1.0"
+description = "ReSpeaker microphone array modules for the retico framework: audio with direction of arrival (DOA), DOA-based speaker diarization, and per-speaker audio splitting."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "retico-core",
+    "python-socketio[client]>=5",
+]
+keywords = ["retico", "respeaker", "microphone array", "doa", "diarization"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+
